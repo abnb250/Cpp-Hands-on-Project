@@ -1,9 +1,9 @@
+#ifndef COMPLEX_H
+#define COMPLEX_H
+
 #include <iostream>
 #include <algorithm>
 #include <cmath>
-
-#ifndef COMPLEX_H
-#define COMPLEX_H
 
 class Complex{
 private:
@@ -20,6 +20,18 @@ public:
     Complex operator-(const Complex& b) const;
     Complex operator*(const Complex& b) const;
     Complex operator/(const Complex& b) const;
+    Complex operator/(const double& b) const;
+    Complex& operator+=(const Complex& b);
+    Complex& operator-=(const Complex& b);
+    Complex& operator*=(const Complex& b);
+    Complex& operator/=(const Complex& b);
+    Complex get_conj() const;
+    double get_abs() const;
+    bool operator==(const Complex& b) const;
+    bool operator!=(const Complex& b) const;
+    friend Complex operator+(double a, const Complex& b);
+    friend std::ostream& operator<<(std::ostream& os, const Complex& a);
+    friend std::istream& operator>>(std::istream& is, Complex& a);
 };
 
 #endif
