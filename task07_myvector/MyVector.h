@@ -244,49 +244,162 @@ const T& MyVector<T>::at(std::size_t index) const {
 }
 
 template<typename T>
-T& MyVector<T>::front() {}
+T& MyVector<T>::front() {
+    if(size_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(cap_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_[0];
+}
 
 template<typename T>
-const T& MyVector<T>::front() const {}
+const T& MyVector<T>::front() const {
+    if(size_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(cap_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_[0];
+}
 
 template<typename T>
-T& MyVector<T>::back() {}
+T& MyVector<T>::back() {
+    if(size_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(cap_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_[size_];
+}
 
 template<typename T>
-const T& MyVector<T>::back() const {}
+const T& MyVector<T>::back() const {
+    if(size_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(cap_ == 0){
+        throw std::out_of_range("empty");
+    }
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_[size_];
+}
 
 template<typename T>
-T& MyVector<T>::data() {}
+T& MyVector<T>::data() {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_;
+}
 
 template<typename T>
-const T& MyVector<T>::data() const {}
+const T& MyVector<T>::data() const {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return data_;
+}
 
 template<typename T>
-std::size_t MyVector<T>::size() const noexcept {}
+std::size_t MyVector<T>::size() const noexcept {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return max(0, size_ -1);
+}
 
 template<typename T>
-std::size_t MyVector<T>::capacity() const noexcept {}
+std::size_t MyVector<T>::capacity() const noexcept {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return cap_;
+}
 
 template<typename T>
-bool MyVector<T>::empty() const noexcept {}
+bool MyVector<T>::empty() const noexcept {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return size() == 0;
+}
 
 template<typename T>
-std::size_t MyVector<T>::max_size() const noexcept {}
+std::size_t MyVector<T>::max_size() const noexcept {
+    if(data_ == nullptr){
+        theow std::invailed_argument("nullptr pointer");
+    }
+    return cap_;
+}
 
 template<typename T>
-void MyVector<T>::reserve(std::size_t n) {}
+void MyVector<T>::reserve(std::size_t n) {
+    if(n < size_){
+        throw std::invaild_argument("too samll");
+    }
+    T* tmp = new T[n];
+    for(std::size_t = 0; i < size_; i++){
+        tmp[i] = data_[i];
+    }
+    delete[] data_;
+    data_ = tmp;
+}
 
 template<typename T>
 void MyVector<T>::shrink_to_fit() {}
 
 template<typename T>
-void MyVector<T>::resize(std::size_t n) {}
+void MyVector<T>::resize(std::size_t n) {
+    if(n > cap_){
+        throw std::invaild_argument("too big");
+    }
+    T* tmp = new T[n];
+    for(std::size_t = 0; i < size_; i++){
+        tmp[i] = data_[i];
+    }
+    size_ = n;
+    delete[] data_;
+    data_ = tmp;
+}
 
 template<typename T>
-void MyVector<T>::resize(std::size_t n, T val) {}
+void MyVector<T>::resize(std::size_t n, T val) {
+    if(n > cap_){
+        throw std::invaild_argument("too big");
+    }
+    T* tmp = new T[n];
+    for(std::size_t = 0; i < size_; i++){
+        tmp[i] = data_[i];
+    }
+    while(size_ < n){
+        tmp[size_ - 1] = val;
+        size_++;
+    }
+    delete[] data_;
+    data_ = tmp;
+}
 
 template<typename T>
-void MyVector<T>::Swap(MyVector& other) noexcept {}
+void MyVector<T>::Swap(MyVector& other) noexcept {
+    std::swap(data_, other.data_);
+    std::swap(size_, other.size_);
+    std::swap(cap_, other.cap_);
+}
 
 template<typename T>
 void MyVector<T>::push_back(const T& v) {}
