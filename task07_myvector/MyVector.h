@@ -9,9 +9,9 @@
 template<class T>
 class MyVector{
 private:
-    T* data_;
-    std::size_t size_;
-    std::size_t cap_;
+    T* data_ = nullptr;
+    std::size_t size_ = 0;
+    std::size_t cap_ = 0;
     static T* alloc(std::size_t n){
         return static_cast<T*>(::operator new(n * sizeof(T)));
     }
@@ -20,18 +20,19 @@ private:
     }
     void free_all() noexcept {
         for(std::size_t i = 0; i < size_; i++){
-            data[i].~T();
+            data_[i].~T();
         }
         dealloc(data_);
         data_ = nullptr;
         size_ = 0;
         cap_ = 0;
     }
+    void grow(std::size_t newcap);
 
 public:
     MyVector() noexcept : data_(nullptr), size_(0), cap_(0) {}
-    MyVector(std::size_t ca) : data(ca ? alloc(ca) : nullptr), size_(0), cap_(ca) {}
-    MyVector(std::size_t num, T val) : data(num ? alloc(num) : nullptr), size_(0), cap_(num) {
+    MyVector(std::size_t ca) : data_(ca ? alloc(ca) : nullptr), size_(0), cap_(ca) {}
+    MyVector(std::size_t num, const T& val) : data_(num ? alloc(num) : nullptr), size_(0), cap_(num) {
         try{
             for(; size_ < cap_; size_++){
                 new(data_ + size_) T(val);
@@ -48,18 +49,18 @@ public:
 
     using iterator = T*;
     using const_iterator = const T*;
-    iterator begin();
-    const_iterator begin() const;
-    iterator end();
-    const_iterator end() const ;
+    iterator begin() noexcept;
+    const_iterator begin() const noexcept;
+    iterator end() noexcept;
+    const_iterator end() const noexcept;
+    const_iterator cbegin() const noexcept;
+    const_iterator cend() const noexcept;
 
 
     MyVector(const MyVector& other);
     MyVector& operator=(const MyVector& other);
     MyVector(MyVector&& other) noexcept;
-    MyVector& operator=(MyVector&& other);
-
-    void grow(std::size_t newcap);
+    MyVector& operator=(MyVector&& other) noexcept;
 
     T& operator[](std::size_t index);
     const T& operator[](std::size_t index) const;
@@ -71,8 +72,8 @@ public:
     T& back();
     const T& back() const;
 
-    T& data();
-    const T& data() const;
+    T* data();
+    const T* data() const;
 
     std::size_t size() const noexcept;
     std::size_t capacity() const noexcept;
@@ -82,17 +83,18 @@ public:
     void reserve(std::size_t n);
     void shrink_to_fit();
     void resize(std::size_t n);
-    void resize(std::size_t n, T val);
+    void resize(std::size_t n, const T& val);
 
     void Swap(MyVector& other) noexcept;
 
     void push_back(const T& v);
     void push_back(T&& v);
-    void pop();
-    void clear();
+    void pop_back();
+    void clear() noexcept;
 
-    iterator insert(std::size_t pos, T& val);
-    iterator insert(std::size_t pos, int count, T& val);
+    iterator insert(std::size_t pos, const T& val);
+    iterator insert(std::size_t pos, T&& val);
+    iterator insert(std::size_t pos, std::size_t count, const T& val);
     template<class InputIt>
     iterator insert(std::size_t pos, InputIt first, InputIt last);
     iterator erase(std::size_t pos);
@@ -112,11 +114,11 @@ MyVector<T>::MyVector(std::initializer_list<T> init) {
         for(auto v : init){
             emplace_back(v);
         }
-    }catch{
+    }catch(...){
         for(std::size_t i = 0; i < size_; i++){
             data_[i].~T();
         }
-        ::operator detele(data_);
+        ::operator delete(data_);
         data_ = nullptr;
         size_ = 0;
         cap_ = 0;
@@ -129,9 +131,9 @@ template<typename InputIt>
 MyVector<T>::MyVector(InputIt first, InputIt last) {
     try{
         for(; first != last; first++){
-            emplce_back(*first);
+            emplace_back(*first);
         }
-    }catch{
+    }catch(...){
         for(std::size_t i = 0; i < size_; i++){
             data_[i].~T();
         }
@@ -149,70 +151,62 @@ MyVector<T>::~MyVector() noexcept {
 }
 
 template<typename T>
-typename MyVector<T>::iterator MyVector<T>::begin() {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        throw std::invaild_argument("nullptr pointer");
-    }
-    return data_[0];
+typename MyVector<T>::iterator MyVector<T>::begin() noexcept{
+    return data_;
 }
 
 template<typename T>
-typename MyVector<T>::const_iterator MyVector<T>::begin() const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        throw std::invaild_argument("nullptr pointer");
-    }
-    return &data_[0];
+typename MyVector<T>::const_iterator MyVector<T>::begin() const noexcept{
+    return data_;
 }
 
 template<typename T>
-typename MyVector<T>::iterator MyVector<T>::end() {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        throw std::invaild_argument("nullptr pointer");
-    }
-    return begin() + size_;
+typename MyVector<T>::iterator MyVector<T>::end() noexcept{
+    return data_ + size_;
 }
 
 template<typename T>
-typename MyVector<T>::const_iterator MyVector<T>::end() const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        throw std::invaild_argument("nullptr pointer");
-    }
-    return begin() + size_;
+typename MyVector<T>::const_iterator MyVector<T>::end() const noexcept{
+    return data_ + size_;
+}
+
+template<typename T>
+typename MyVector<T>::const_iterator MyVector<T>::cbegin() const noexcept{
+    return data_;
+}
+
+template<typename T>
+typename MyVector<T>::const_iterator MyVector<T>::cend() const noexcept{
+    return data_ + size_;
 }
 
 
 template<typename T>
 MyVector<T>::MyVector(const MyVector& other) :
-    data_(other.data_), 
-    size_(other.size_), 
-    cap_(other.cap_) {
-    if(other.data_ == nullptr){
-        clear();
+    data_(nullptr), 
+    size_(0), 
+    cap_(0) {
+    if(other.size_ == 0){
+        return;
     }
-    if(cap_ > 0){
-        data_ = new T[cap_];
-        for(std::size_t i = 0; i < cap; i++){
-            data_[i] = other.data_[i];
+    data_ = alloc(other.cap_);
+    cap_ = other.cap_;
+    try{
+        for(; size_ < other.size_; size_++){
+            new(data_ + size_) T(other.data_[size_]);
         }
+    }catch(...){    
+        free_all();
+        throw;
     }
 }
 
 template<typename T>
 MyVector<T>& MyVector<T>::operator=(const MyVector& other) {
+    if(this == &other) return *this;
     MyVector tmp(other);
     Swap(tmp);
+    return *this;
 }
 
 template<typename T>
@@ -220,43 +214,33 @@ MyVector<T>::MyVector(MyVector&& other) noexcept :
     data_(other.data_), 
     size_(other.size_), 
     cap_(other.cap_) {
-    if(other.data_ == nullptr){
-        clear();
-    }
-    if(other.cap_ == 0){
-        clear();
-    }
     other.data_ = nullptr;
     other.size_ = 0;
     other.cap_ = 0;
 }
 
 template<typename T>
-MyVector<T>& MyVector<T>::operator=(MyVector&& other) {
-    if(other.data_ == nullptr){
-        clear();
-    }
-    if(other.cap_ == 0){
-        clear();
-    }
-    delete[] data_;
+MyVector<T>& MyVector<T>::operator=(MyVector&& other) noexcept{
+    if(this == &other) return *this;
+    free_all();
     data_ = other.data_;
     size_ = other.size_;
     cap_ = other.cap_;
     other.data_ = nullptr;
     other.size_ = 0;
-    other.cao_ = 0;
+    other.cap_ = 0;
+    return *this;
 }
 
 template<typename T>
 void MyVector<T>::grow(std::size_t newcap){
-    if(newcap == cap_) return;
+    if(newcap <= cap_) return;
 
     T* newdata = alloc(newcap);
-    std::size_t constrructd = 0;
+    std::size_t constructed = 0;
     try{
-        for(; constructed < size_; i++){
-            new(newdata + constructed) T(std::move_if_noexcept(data_[construceted]));
+        for(; constructed < size_; constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(data_[constructed]));
         }
     }catch(...){
         for(std::size_t i = 0; i < constructed; i++){
@@ -265,6 +249,7 @@ void MyVector<T>::grow(std::size_t newcap){
         dealloc(newdata);
         throw;
     }
+    for(std::size_t i = 0; i < size_; i++) data_[i].~T();
     dealloc(data_);
     data_ = newdata;
     cap_ = newcap;
@@ -272,209 +257,142 @@ void MyVector<T>::grow(std::size_t newcap){
 
 template<typename T>
 T& MyVector<T>::operator[](std::size_t index) {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
     return data_[index];
 }
 
 template<typename T>
 const T& MyVector<T>::operator[](std::size_t index) const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
     return data_[index];
 }
 
 template<typename T>
 T& MyVector<T>::at(std::size_t index) {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
+    if(index >= size_) throw std::out_of_range("at");
     return data_[index];
 }
 
 template<typename T>
 const T& MyVector<T>::at(std::size_t index) const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
+    if(index >= size_) throw std::out_of_range("at");
     return data_[index];
 }
 
 template<typename T>
 T& MyVector<T>::front() {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
     return data_[0];
 }
 
 template<typename T>
 const T& MyVector<T>::front() const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
     return data_[0];
 }
 
 template<typename T>
 T& MyVector<T>::back() {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    return data_[size_];
+    return data_[size_ - 1];
 }
 
 template<typename T>
 const T& MyVector<T>::back() const {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    return data_[size_];
+    return data_[size_ - 1];
 }
 
 template<typename T>
-T& MyVector<T>::data() {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
+T* MyVector<T>::data() {
     return data_;
 }
 
 template<typename T>
-const T& MyVector<T>::data() const {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
+const T* MyVector<T>::data() const {
     return data_;
 }
 
 template<typename T>
 std::size_t MyVector<T>::size() const noexcept {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    return max(0, size_ -1);
+    return size_;
 }
 
 template<typename T>
 std::size_t MyVector<T>::capacity() const noexcept {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
     return cap_;
 }
 
 template<typename T>
 bool MyVector<T>::empty() const noexcept {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    return size() == 0;
+    return size_ == 0;
 }
 
 template<typename T>
-std::size_t MyVector<T>::max_size() const noexcept {
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    return cap_;
+std::size_t MyVector<T>::max_size() const noexcept { //理论最大容量
+    return static_cast<std::size_t> (-1) / sizeof(T);
 }
 
 template<typename T>
 void MyVector<T>::reserve(std::size_t n) {
-    if(n < size_){
-        throw std::invaild_argument("too samll");
-    }
-    T* tmp = new T[n];
-    for(std::size_t = 0; i < size_; i++){
-        tmp[i] = data_[i];
-    }
-    delete[] data_;
-    data_ = tmp;
+    if(n <= cap_) return;
+    if(n > max_size()) throw std::length_error("reserve");
+    grow(n);
 }
 
 template<typename T>
-void MyVector<T>::shrink_to_fit() {}
+void MyVector<T>::shrink_to_fit() {
+    if(size_ == cap_) return;
+    if(size_ == 0){
+        free_all();
+        return;
+    }
+
+    T* newdata = alloc(size_);
+    std::size_t constructed = 0;
+    try{
+        for(; constructed < size_; constructed++){
+            new(newdata + constructed) T (std::move_if_noexcept(data_[constructed]));
+        }
+    }catch(...){
+        for(std::size_t i = 0; i < constructed; i++){
+            newdata[i].~T();
+        }
+        dealloc(newdata);
+        throw;
+    }
+    for(std::size_t i = 0; i < size_; i++){
+        data_[i].~T();
+    }
+    dealloc(data_);
+    data_ = newdata;
+    cap_ = size_;
+}
 
 template<typename T>
 void MyVector<T>::resize(std::size_t n) {
-    if(n > cap_){
-        throw std::invaild_argument("too big");
+    if(n < size_){
+        for(std::size_t i = n; i < size_; i++){
+            data_[i].~T();
+        }
+        size_ = n;
     }
-    T* tmp = new T[n];
-    for(std::size_t = 0; i < size_; i++){
-        tmp[i] = data_[i];
+    else if(n > size_){
+        if(n > cap_) grow(std::max(cap_*2, n));
+        for(; size_ < n; size_++){
+            new(data_ + size_) T();
+        }
     }
-    size_ = n;
-    delete[] data_;
-    data_ = tmp;
 }
 
 template<typename T>
-void MyVector<T>::resize(std::size_t n, T val) {
-    if(n > cap_){
-        throw std::invaild_argument("too big");
+void MyVector<T>::resize(std::size_t n, const T& val) {
+    if(n < size_){
+        for(std::size_t i = n; i < size_; i++){
+            data_[i].~T();
+        }
+        size_ = n;
     }
-    T* tmp = new T[n];
-    for(std::size_t = 0; i < size_; i++){
-        tmp[i] = data_[i];
+    else if(n > size_){
+        if(n > cap_) grow(std::max(cap_*2, n));
+        for(; size_ < n; size_++){
+            new(data_ + size_) T(val);
+        }
     }
-    while(size_ < n){
-        tmp[size_ - 1] = val;
-        size_++;
-    }
-    delete[] data_;
-    data_ = tmp;
 }
 
 template<typename T>
@@ -486,170 +404,148 @@ void MyVector<T>::Swap(MyVector& other) noexcept {
 
 template<typename T>
 void MyVector<T>::push_back(const T& v) {
-    if(size_ == cap_){
-        std::size_t newcap = (cap_ == 0 ? 10 : 2*cap_);
-        reserve(newcap);
-        cap_ = newcap;
-    }
-    data_[size_++] = v;
+    if(size_ == cap_) grow(cap_ == 0 ? 10 : cap_ * 2);
+    new(data_ + size_) T (v);
+    size_++;
 }
 
 template<typename T>
 void MyVector<T>::push_back(T&& v) {
-    if(size_ == cap_){
-        std::size_t newcap = (cap_ == 0 ? 10 : 2*cap_);
-        reserve(newcap);
-        cap_ = newcap;
-    }
-    T tmp = v;
-    v = 0;
-    data_[size_++] = tmp;
+    if(cap_ == size_) grow(cap_ == 0 ? 10 : cap_*2);
+    new(data_ + size_) T (std::move(v));
+    size_++;
 }
 
 template<typename T>
-void MyVector<T>::pop() {
-    if(size_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(cap_ == 0){
-        throw std::out_of_range("empty");
-    }
-    if(data_ == nullptr){
-        theow std::invailed_argument("nullptr pointer");
-    }
-    --size_;
+void MyVector<T>::pop_back() {
+    if(size_ == 0) throw std::out_of_range("pop_back");
+    size_--;
+    data_[size_].~T();
 }
 
 template<typename T>
-void MyVector<T>::clear() {
-    cap_ = 0;
+void MyVector<T>::clear() noexcept {
+    for(std::size_t i = 0; i < size_; i++){
+        data_[i].~T();
+    }
     size_ = 0;
-    delete[] data_;
-    data_ = nullptr;
 }
 
 template<typename T>
-typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, T& val) {
-    if(pos > size_){
-        throw std::invaild_argument("unvaild");
-    }
-    if(pos == size_){
-        push_back(val);
-    }
-    else{
-        T* tmp = new T[cap_ + 1];
-        size_++;
-        for(std::size_t i = 0; i < size_; i++){
-            if(i < pos){
-                tmp[i] = data_[i];
-            }
-            if(i == pos){
-                tmp[i] = val;
-            }
-            if(i > pos){
-                tmp[i] = data_[i-1];
-            }
-        }
-        std::swap(data_, tmp);
-    }
+typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, const T& val) {
+    return emplace(pos, val);
 }
 
 template<typename T>
-typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, int count, T& val) {
-    if(pos > size_){
-        throw std::invaild_argument("unvaild");
-    }
-    if(pos == size_){
-        while(pos + count > size_){
-            push_back(val);
+typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, T&& val) {
+    return emplace(pos, std::move(val));
+}
+
+template<typename T>
+typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, std::size_t count, const T& val) {
+    if(pos > size_) throw std::out_of_range("insert");
+    if(count == 0) return data_ + pos;
+
+    std::size_t newcap = std::max(cap_ * 2, size_ + count);
+    T* newdata = alloc(newcap);
+    std::size_t constructed = 0;
+    try{
+        for(; constructed < pos; constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(data_[constructed]));
         }
-    }
-    else{
-        T* tmp = new T[cap_ + count];
-        size_+= count;
-        for(std::size_t i = 0; i < size_; i++){
-            if(i < pos){
-                tmp[i] = data_[i];
-            }
-            if(i >= pos && i < pos + count){
-                tmp[i] = val;
-            }
-            if(i >= pos + count){
-                tmp[i] = data_[i-count];
-            }
+        for(std::size_t k = 0; k < count; k++, constructed++){
+            new(newdata + constructed) T(val);
         }
-        std::swap(data_, tmp);
+        for(std::size_t k = pos; k < size_; k++, constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(data_[k]));
+        }
+    }catch(...){
+        for(std::size_t i = 0; i < constructed; i++){
+            newdata[i].~T();
+        }
+        dealloc(newdata);
+        throw;
     }
+    for(std::size_t i = 0; i < size_; i++){
+        data_[i].~T();
+    }
+    dealloc(data_);
+    data_ = newdata;
+    cap_ = newcap;
+    size_ = size_ + count;
+    return data_ + pos;
 }
 
 template<typename T>
 template<class InputIt>
 typename MyVector<T>::iterator MyVector<T>::insert(std::size_t pos, InputIt first, InputIt last) {
-    std::size_t index = static_cast<std::size_t>(pos - data_);
+    if(pos > size_) throw std::out_of_range("insert");
     MyVector tmp(first, last);
-    if(tmp.size_ == 0){
-        throw std::invaild_argument("empty");
-    }
 
-    if(size_ + tmp.size_ >= cap_){
-        grow(std::max(cap_*2, size_ + tmp.size_));
+    std::size_t n = tmp.size();
+    if(n == 0) return data_ + pos;
+    std::size_t newcap = std::max(cap_*2, size_ + n);
+    T* newdata = alloc(newcap);
+    std::size_t constructed = 0;
+    try{
+        for(; constructed < pos; constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(data_[constructed]));
+        }
+        for(std::size_t k = 0; k < n; k++, constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(tmp.data_[k]));
+        }
+        for(std::size_t k = pos; k < size_; k++, constructed++){
+            new(newdata + constructed) T(std::move_if_noexcept(data_[k]));
+        }
+    }catch(...){
+        for(std::size_t i = 0; i < constructed; i++){
+            newdata[i].~T();
+        }
+        dealloc(newdata);
+        throw;
     }
-
-    std::size_t n = tmp.size_;
-    for(std::size_t i = size_ - 1; i > index; i--){
-        new(data_ + i + n) = T(std::move(data_[i]));
+    for(std::size_t i = 0; i < size_; i++){
         data_[i].~T();
     }
-
-    for(std::sizr_t i = 0; i < n; i++){
-        new(data_ + index + i) T(std::move(tmp.data_[i]));
-    }
-    size_ += n;
-
-    return data_ + index;
+    dealloc(data_);
+    data_ = newdata;
+    cap_ = newcap;
+    size_ = size_ + n;
+    return data_ + pos;
 }
 
 template<typename T>
 typename MyVector<T>::iterator MyVector<T>::erase(std::size_t pos) {
     if(pos >= size_){
-        throw std::invaild_argument("invaild");
+        throw std::out_of_range("erase");
     }
-    T* tmp = new T[cap_ - 1];
-    for(std::size_t i = 0; i < size_; i++){
-        if(i < pos){
-            tmp[i] = data_[i]
-        }
-        if(i > pos){
-            tmp[i] = data_[i-1];
-        }
+    for(std::size_t i = pos; i+1 < size_; i++){
+        data_[i] = std::move(data_[i+1]);
     }
-    std::swap(tmp, data_);
     size_--;
+    data_[size_].~T();
+    return data_ + pos;
 }
 
 template<typename T>
 typename MyVector<T>::iterator MyVector<T>::erase(std::size_t first, std::size_t last) {
-    if(pos >= size_){
-        throw std::invaild_argument("invaild");
+    if(first > last || last > size_) throw std::out_of_range("erase");
+    std::size_t n = last - first;
+    if (n == 0) return data_ + first;
+    for(std::size_t i = first; i + n < size_; i++){
+        data_[i] = std::move(data_[i+n]);
     }
-    std::size_t count = last - first + 1;
-    T* tmp = new T[cap_ - count];
-    for(std::size_t i = 0; i < size_; i++){
-        if(i < first){
-            tmp[i] = data_[i]
-        }
-        if(i > last){
-            tmp[i] = data_[i- count - 1];
-        }
+    for(std::size_t i = size_ - n; i < size_; i++){
+        data_[i].~T();
     }
-    std::swap(tmp, data_);
-    size_ -= count;
+    size_ -= n;
+    return data_ + first;
 }
 
 template<typename T>
-template<typename... Args>
+template<class... Args>
 void MyVector<T>::emplace_back(Args&&... args) {
-    if(size_ == cap_){
+    if(size_ == cap_){  
         grow(cap_ == 0 ? 10 : cap_*2);
     }
     new(data_ + size_) T(std::forward<Args>(args)...);
@@ -659,7 +555,8 @@ void MyVector<T>::emplace_back(Args&&... args) {
 template<typename T>
 template<typename... Args>
 typename MyVector<T>::iterator MyVector<T>::emplace(std::size_t pos, Args&&... args) {
-    std::size_t index = static_cast<std::size_t>(pos - data_);
+    if(pos > size_) throw std::out_of_range("emplace");
+    std::size_t index = pos;
 
     if(index == size_){
         emplace_back(std::forward<Args>(args)...);
@@ -673,11 +570,11 @@ typename MyVector<T>::iterator MyVector<T>::emplace(std::size_t pos, Args&&... a
     new(data_ + size_) T(std::move(data_[size_ - 1]));
     size_++;
 
-    for(std::size_ t i = size_ - 2; i > index; i--){
-        data_[i] = std::move(data[i - 1]);
+    for(std::size_t i = size_ - 2; i > index; i--){
+        data_[i] = std::move(data_[i - 1]);
     }
-
-    data_[index] = T(std::forward<Args>(args)...);
+    
+    data_[index] =  T(std::forward<Args>(args)...);
     
     return data_ + index;
 }
