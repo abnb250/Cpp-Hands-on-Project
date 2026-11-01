@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <algorithm>
 #include <utility>  
 #include <cstddef>
 #include <queue>
@@ -33,7 +34,7 @@ private:
 
     Node* findNode(const T& val) const;
 
-    std::size_t heightRec(const Node* n);
+    std::size_t heightRec(const Node* n) const;
     Node* cloneRec(const Node* n);
 
     template<class Fn> void inorderRec(Node* n, Fn& fn) const;
@@ -45,9 +46,9 @@ public:
     ~BST() noexcept;
 
     BST(const BST& other);
-    BST& operator=(BST& other);
+    BST& operator=(const BST& other);
     BST(BST&& other) noexcept;
-    BST& operator=(BST&& other);
+    BST& operator=(BST&& other) noexcept;
 
     void swap(BST& other) noexcept;
     friend void swap(BST& a, BST& b) noexcept {a.swap(b);}
@@ -56,11 +57,12 @@ public:
     bool insert(T&& val);
 
     bool contains(const T& val) const;
+    const T* find(const T& val) const;
 
     const T& minimum() const;
     const T& maximum() const;
 
-    bool erase(const T& v);
+    bool erase(const T& val);
 
     template<class Fn> void inorder(Fn&& fn) const;
     template<class Fn> void preorder(Fn&& fn) const;
@@ -90,7 +92,7 @@ typename BST<T>::Node* BST<T>::minNode(Node *n) const
 {
     if (n == nullptr)
     {
-        throw std::invaild_argument("nullptr pointer");
+        throw std::out_of_range("nullptr pointer");
     }
     if (n->left)
         return minNode(n->left);
@@ -101,7 +103,7 @@ typename BST<T>::Node* BST<T>::maxNode(Node *n) const
 {
     if (n == nullptr)
     {
-        throw std::invaild_argument("nullptr pointer");
+        throw std::out_of_range("nullptr pointer");
     }
     if (n->right)
         return maxNode(n->right);
@@ -122,6 +124,7 @@ typename BST<T>::Node* BST<T>::insertRec(Node *n, const T &val, bool &inserted)
         n->right = insertRec(n->right, val, inserted);
     else if (val < n->v)
         n->left = insertRec(n->left, val, inserted);
+    if (val == n->v) return n;  
     return n;
 }
 
@@ -131,13 +134,13 @@ typename BST<T>::Node* BST<T>::insertRec(Node *n, T&& val, bool &inserted)
     if (n == nullptr)
     {
         inserted = true;
-        return n = new Node(std::move(val));
+        return new Node(std::move(val));
     }
 
     if (val < n->v)
-        n->left = insertRec(n, std::move(val), inserted);
+        n->left = insertRec(n->left, std::move(val), inserted);
     else if (val > n->v)
-        n->right = insertRec(n, std::move(val), inserted);
+        n->right = insertRec(n->right, std::move(val), inserted);
     return n;
 }
 
@@ -163,24 +166,26 @@ typename BST<T>::Node* BST<T>::eraseRec(Node *n, const T &val, bool &erased)
     if (!n->left && !n->right)
     {
         delete n;
-        return n;
+        return nullptr;
     }
 
     if (!(n->left))
     {
-        n = n->right;
-        return n;
+        Node* tmp = n->right;
+        delete n;
+        return tmp;
     }
     if (!(n->right))
     {
-        n = n->left;
-        return n;
+        Node* tmp = n->left;
+        delete n;
+        return tmp;
     }
 
     Node *tmp = minNode(n->right);
     std::swap(n->v, tmp->v);
     bool dummy = false;
-    n->right = eraseReec(n->right, tmp->v, dummy);
+    n->right = eraseRec(n->right, tmp->v, dummy);
     return n;
 }
 
@@ -201,7 +206,7 @@ typename BST<T>::Node* BST<T>::findNode(const T &val) const
 }
 
 template <typename T>
-std::size_t BST<T>::heightRec(const Node *n)
+std::size_t BST<T>::heightRec(const Node *n) const
 {
     if (n == nullptr)
         return static_cast<std::size_t>(0);
@@ -216,8 +221,8 @@ typename BST<T>::Node* BST<T>::cloneRec(const Node *n)
     Node *tmp = new Node(n->v);
     try
     {
-        tmp->left = cloneRec(tmp->left);
-        tmp->right = cloneRec(tmp->right);
+        tmp->left = cloneRec(n->left);
+        tmp->right = cloneRec(n->right);
     }
     catch (...)
     {
@@ -245,7 +250,7 @@ void BST<T>::preorderRec(Node *n, Fn &fn) const
         return;
     fn(n->v);
     preorderRec(n->left, fn);
-    preorderRec(n->right, , fn);
+    preorderRec(n->right, fn);
 }
 template <typename T>
 template <class Fn>
@@ -265,16 +270,11 @@ BST<T>::~BST() noexcept {
 
 template<typename T>
 BST<T>::BST(const BST& other):
-    root_(nullptr), size_(other.size_) {
-    if(other.root_ == nullptr) return;
-
-    Node* tmp = new Node(other.root_->val);
-    tmp = cloneRec(other.root_);
-    std::swap(tmp, root_);
+    root_(cloneRec(other.root_)), size_(other.size_) {
 }
 
 template<typename T>
-BST<T>& BST<T>::operator=(BST& other) {
+BST<T>& BST<T>::operator=(const BST& other) {
     if(this == &other) return *this;
     BST tmp(other);
     swap(tmp);
@@ -288,11 +288,12 @@ BST<T>::BST(BST&& other) noexcept : root_(other.root_), size_(other.size_){
 }
 
 template<typename T>
-BST<T>& BST<T>::operator=(BST&& other) {
+BST<T>& BST<T>::operator=(BST&& other) noexcept {
     if(this == &other) return *this;
-    std::swap(root_, other.root_);
-    std::swap(size_, other.size_);
-    other.root = nullptr;
+    clear();
+    root_ = other.root_;
+    size_ = other.size_;
+    other.root_ = nullptr;
     other.size_ = 0;
     return *this;
 }
@@ -307,37 +308,47 @@ template<typename T>
 bool BST<T>::insert(const T& val) {
     bool dummy = false;
     root_ = insertRec(root_, val, dummy);
+    if(dummy) size_++;
     return dummy;
 }
 
 template<typename T>
 bool BST<T>::insert(T&& val) {
     bool dummy = false;
-    root_ = insertRec(root, std::move(val), dummy);
+    root_ = insertRec(root_, std::move(val), dummy);
+    if(dummy) size_++;
     return dummy;
 }
 
 template<typename T>
 bool BST<T>::contains(const T& val) const {
-    return findNode(val) != nullptr
+    return findNode(val) != nullptr;
+}
+
+template<typename T>
+const T* BST<T>::find(const T& val) const {
+    Node* tmp = findNode(val);
+    if(tmp == nullptr) return nullptr;
+    return &tmp->v;
 }
 
 template<typename T>
 const T& BST<T>::minimum() const {
-    Node* tmp = minNode(root_);
-    return tmp.root_->v;
+    const Node* tmp = minNode(root_);
+    return tmp->v;
 }
 
 template<typename T>
 const T& BST<T>::maximum() const {
-    Node* tmp = maxNode(root_);
-    return tmp.root_->v;
+    const Node* tmp = maxNode(root_);
+    return tmp->v;
 }
 
 template<typename T>
-bool BST<T>::erase(const T& v) {
+bool BST<T>::erase(const T& val) {
     bool dummy = false;
     root_ = eraseRec(root_, val, dummy);
+    if(dummy) size_--;
     return dummy;
 }
 
@@ -361,7 +372,8 @@ void BST<T>::postorder(Fn&& fn) const {
 template<typename T>
 template<class Fn> 
 void BST<T>::levelorder(Fn&& fn) const {
-    queue<Node*> q;
+    if(root_ == nullptr) return;
+    std::queue<Node*> q;
     q.push(root_);
     while(!q.empty()){
         Node* tmp = q.front();
@@ -375,13 +387,15 @@ void BST<T>::levelorder(Fn&& fn) const {
 
 template<typename T>
 std::size_t BST<T>::height() const {
-    return heigetRec(root_);
+    return heightRec(root_);
 }
 
 template<typename T>
 void BST<T>::clear() noexcept {
     clearRec(root_);
+    root_ = nullptr;
+    size_ = 0;
 }
 
-#endif BST_H
+#endif
 
